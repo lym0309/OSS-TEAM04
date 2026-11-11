@@ -1,0 +1,74 @@
+# ===== 환경변수 / 비밀키 (절대 커밋 금지) =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ===== Node / 패키지 =====
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/*
+!.yarn/releases
+.pnp.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===== 빌드 결과물 (React + Vite) =====
+dist/
+dist-ssr/
+build/
+*.local
+.vite/
+.vercel
+
+# ===== 테스트 / 커버리지 =====
+coverage/
+.nyc_output/
+*.lcov
+
+# ===== 로그 / 런타임 =====
+logs/
+*.log
+pids/
+*.pid
+*.seed
+*.pid.lock
+tmp/
+.cache/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# ===== 로컬 DB / Docker 볼륨 데이터 =====
+mysql-data/
+db-data/
+caddy_data/
+caddy_config/
+*.sql.gz
+*.dump
+
+# ===== 업로드 / 수집 캐시 =====
+uploads/
+
+# ===== 에디터 / OS =====
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Python (데이터 확인용 스크립트) =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
