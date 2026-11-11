@@ -5,14 +5,13 @@
 OSS-TEAM04/
 ├─ front/     # React + Vite (Vercel 배포)
 ├─ backend/   # Express + MySQL (Docker → AWS EC2)
-└─ docs/      # 기획 문서
+└─ docs/      # 협업 규칙 (기획 문서는 Notion에서 공유)
 ```
 
 ## 2. 브랜치 전략
 | 브랜치 | 용도 |
 |---|---|
-| `main` | 배포·제출용. `develop`이 안정되면 PR로만 반영 |
-| `develop` | **기본 브랜치**. 모든 작업 PR이 모이는 곳 |
+| `develop` | **기본이자 메인 브랜치**. 모든 작업 PR이 모이는 곳 (보호됨: 직접 push 금지, PR로만 반영) |
 | `feat/#이슈번호-설명` | 새 기능 |
 | `fix/#이슈번호-설명` | 버그 수정 |
 | `refactor/#이슈번호-설명` | 리팩토링 |
@@ -29,7 +28,7 @@ OSS-TEAM04/
    ```
 3. 작업 후 커밋, push
 4. `develop`으로 PR 생성 (본문에 `close #12`)
-5. 리뷰 후 **Squash and merge**, 머지된 브랜치는 삭제
+5. **Squash and merge** (승인 없이 본인이 머지 가능, 리뷰는 권장), 머지된 브랜치는 삭제
 
 ## 3. 커밋 메시지
 ```
