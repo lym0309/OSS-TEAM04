@@ -1,0 +1,20 @@
+# 수업 조건(메모리 512MB 내외)에 맞춘 MySQL 8 메모리 절약 설정
+[mysqld]
+performance_schema       = OFF
+innodb_buffer_pool_size  = 64M
+innodb_log_buffer_size   = 8M
+innodb_redo_log_capacity = 64M
+max_connections          = 20
+table_open_cache         = 256
+table_definition_cache   = 256
+key_buffer_size          = 8M
+tmp_table_size           = 16M
+max_heap_table_size      = 16M
+sort_buffer_size         = 256K
+join_buffer_size         = 256K
+thread_cache_size        = 4
+skip-name-resolve
+
+character-set-server     = utf8mb4
+collation-server         = utf8mb4_0900_ai_ci
+default-time-zone        = '+09:00'

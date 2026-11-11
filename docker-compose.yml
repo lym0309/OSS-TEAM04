@@ -1,0 +1,52 @@
+# 로컬 개발:   docker compose up -d mysql  → backend는 npm run dev
+# 전체 실행:   docker compose up -d --build
+# 필요 변수:   루트 .env (cp .env.example .env)
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD를 .env에 설정하세요}
+      MYSQL_DATABASE: ${DB_NAME:-lostfound}
+      MYSQL_USER: ${DB_USER:-oss}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD를 .env에 설정하세요}
+      TZ: Asia/Seoul
+    ports:
+      # 로컬 개발용. 127.0.0.1에만 열어 외부에서 접근 불가
+      - "127.0.0.1:${DB_HOST_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/conf.d:/etc/mysql/conf.d:ro
+      - ./backend/src/db/init:/docker-entrypoint-initdb.d:ro
+    mem_limit: 320m
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-oss}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-lostfound}
+      POLICE_API_KEY: ${POLICE_API_KEY:-}
+      TZ: Asia/Seoul
+    ports:
+      - "127.0.0.1:${BACKEND_HOST_PORT:-3000}:3000"
+    mem_limit: 192m
+
+volumes:
+  mysql-data:
