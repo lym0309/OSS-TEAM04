@@ -1,0 +1,38 @@
+.thumbnail {
+  flex: none;
+  display: block;
+  overflow: hidden;
+}
+
+.thumbnail--photo {
+  object-fit: cover;
+  background: var(--color-bg-sidebar);
+}
+
+.thumbnail--category,
+.thumbnail--other {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.thumbnail--category {
+  background: var(--color-primary-bg-tile);
+  color: var(--color-tile-label);
+}
+
+.thumbnail--other {
+  background: var(--color-bg-sidebar);
+  color: var(--color-text-muted);
+}
+
+.thumbnail__emoji {
+  line-height: 1;
+}
+
+.thumbnail__label {
+  font-size: 12px;
+  font-weight: 600;
+}
