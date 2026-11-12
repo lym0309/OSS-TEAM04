@@ -2,7 +2,7 @@
 
 ## 1. 레포 구조
 ```
-OSS-TEAM04/
+zupzup/
 ├─ front/     # React + Vite (Vercel 배포)
 ├─ backend/   # Express + MySQL (Docker → AWS EC2)
 └─ docs/      # 협업 규칙 (기획 문서는 Notion에서 공유)

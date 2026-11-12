@@ -5,7 +5,7 @@ export default function Layout() {
   return (
     <div className="layout">
       <header className="header">
-        <Link to="/" className="logo">분실물 매칭</Link>
+        <Link to="/" className="logo">줍줍</Link>
         <nav className="nav">
           <Link to="/">분실물 등록</Link>
           <Link to="/lookup">조회 코드로 확인</Link>
