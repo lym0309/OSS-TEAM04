@@ -1,0 +1,88 @@
+.sidebar {
+  position: sticky;
+  top: 0;
+  flex: none;
+  width: var(--sidebar-width);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding: 20px 0;
+  background: var(--color-bg-sidebar);
+  border-right: 1px solid var(--color-border);
+}
+
+.sidebar__logo {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.sidebar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--color-text-sub);
+  --icon-color: var(--color-text-muted);
+}
+
+.sidebar__item:hover,
+.sidebar__item.is-active {
+  color: var(--color-primary);
+  --icon-color: var(--color-primary);
+}
+
+.sidebar__item.is-active {
+  font-weight: 600;
+}
+
+.sidebar__label {
+  display: flex;
+  flex-direction: column;
+}
+
+/* "새 검색" 40px 원 */
+.sidebar__plus {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary-icon-bg);
+  color: var(--color-primary);
+  font-size: 20px;
+  font-weight: 400;
+}
+
+/* 22px 선 아이콘 */
+.sidebar__icon {
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--icon-color);
+}
+
+.sidebar__icon--circle {
+  border-radius: 50%;
+}
+
+.sidebar__icon--square {
+  border-radius: 5px;
+}
+
+.sidebar__icon--grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  border: none;
+}
+
+.sidebar__icon--grid > span {
+  border: 1.5px solid var(--icon-color);
+  border-radius: 3px;
+}
