@@ -2,13 +2,15 @@
 # 전체 실행:   docker compose up -d --build
 # 필요 변수:   루트 .env (cp .env.example .env)
 
+name: zupzup
+
 services:
   mysql:
     image: mysql:8.4
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD를 .env에 설정하세요}
-      MYSQL_DATABASE: ${DB_NAME:-lostfound}
+      MYSQL_DATABASE: ${DB_NAME:-zupzup}
       MYSQL_USER: ${DB_USER:-oss}
       MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD를 .env에 설정하세요}
       TZ: Asia/Seoul
@@ -41,7 +43,7 @@ services:
       DB_PORT: 3306
       DB_USER: ${DB_USER:-oss}
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME:-lostfound}
+      DB_NAME: ${DB_NAME:-zupzup}
       POLICE_API_KEY: ${POLICE_API_KEY:-}
       TZ: Asia/Seoul
     ports:

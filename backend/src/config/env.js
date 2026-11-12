@@ -19,7 +19,7 @@ export const env = {
     port: Number(process.env.DB_PORT ?? 3306),
     user: process.env.DB_USER ?? 'oss',
     password: process.env.DB_PASSWORD ?? '',
-    database: process.env.DB_NAME ?? 'lostfound',
+    database: process.env.DB_NAME ?? 'zupzup',
     connectionLimit: Number(process.env.DB_CONNECTION_LIMIT ?? 5),
   },
 

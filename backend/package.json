@@ -1,8 +1,8 @@
 {
-  "name": "backend",
+  "name": "zupzup-backend",
   "version": "0.0.0",
   "private": true,
-  "description": "분실물 매칭 서비스 API 서버 (Express)",
+  "description": "줍줍 - 분실물 매칭 서비스 API 서버 (Express)",
   "type": "module",
   "engines": {
     "node": ">=22"
