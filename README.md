@@ -33,7 +33,7 @@ cp backend/.env.example backend/.env  # 백엔드 로컬 실행용 (DB 비밀번
 docker compose up -d mysql
 
 # 3. 백엔드
-cd backend && npm install && npm run dev     # http://localhost:3000
+cd backend && npm install && npm run migrate && npm run dev     # http://localhost:3000
 
 # 4. 프론트 (새 터미널)
 cd front && npm install && npm run dev       # http://localhost:5173
