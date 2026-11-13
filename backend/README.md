@@ -54,6 +54,7 @@ npm run migrate    # 아직 실행 안 된 파일만 번호순으로 실행
 | 테이블 | 파일 | 설명 |
 |---|---|---|
 | `found_items` | `001_found_items.sql` | 경찰청 습득물 (경찰서 + 포털기관). 목록 필드 + 수집 시 계산값(대분류·색 계열·지역·사진 여부) + 상세 필드(`detail_*`) |
+| `lost_items` | `002_lost_items.sql` | 분실물 검색 조건 (입력 문장 + 조건 확인 화면에서 정한 조건). `id` = lostItemId (무작위 16자) |
 | `schema_migrations` | (자동 생성) | 마이그레이션 실행 기록 |
 
 ## API
@@ -62,6 +63,23 @@ npm run migrate    # 아직 실행 안 된 파일만 번호순으로 실행
 | GET | `/api/health` | 서버·DB 상태 (`200 {status:"ok", db:"ok"}` / DB 실패 시 `503`) |
 | GET | `/api/found-items` | 전체 습득물 (아래 참고) |
 | GET | `/api/found-items/filters` | 전체 습득물 필터 선택지 `{ categories, colors, regions, periods, defaultPeriod }` |
+| POST | `/api/lost-items` | 분실물 등록 (아래 참고) |
+| GET | `/api/lost-items/:id` | 저장된 검색 조건 |
+| PATCH | `/api/lost-items/:id` | 검색 조건 수정 |
+
+### 분실물 `/api/lost-items`
+- `POST { rawText }` → `201` 검색 조건. `rawText`는 공백 제외 5자 이상, 500자 이하
+  - `extracted: true`면 조건 확인(3a), `false`면 직접 고르기(3b). **조건 추출(Gemini) 연결 전까지는 항상 `false`**
+- `PATCH { itemName?, prdtClNm?, clrNm?, region?, dateFrom?, dateTo?, brand?, feature? }` → 보낸 필드만 바꿈. `null`·`""`이면 지움
+  - `prdtClNm`·`clrNm`·`region`은 `/api/found-items/filters`의 값만 가능. 날짜는 `YYYY-MM-DD`, 시작 ≤ 끝 ≤ 오늘
+  - 경찰청 코드(`prdtClCd`, `lctCd`)는 서버가 이름으로 계산 (보내도 무시)
+- 응답 (POST·GET·PATCH 공통, 모르는 값은 `null`)
+  ```json
+  { "lostItemId": "nyMw1pywIlWaR12w", "rawText": "어제 2호선에서 검정 에어팟 케이스", "extracted": false,
+    "itemName": "에어팟 프로 케이스", "prdtClNm": "전자기기", "prdtClCd": "PRG000", "clrNm": "검정",
+    "region": "서울", "lctCd": "LCA000", "dateFrom": "2026-11-13", "dateTo": "2026-11-13", "brand": null, "feature": null }
+  ```
+- 오류: `400 { error: { message } }` (화면에 그대로 보여줘도 되는 문구), 없는 id는 `404`
 
 ### `GET /api/found-items?q=&cat=&clr=&region=&period=&page=`
 경찰청 습득물(경찰관서 + 포털기관) 목록. 점수 계산 없이 최신 접수순(`atcId`의 접수일 기준), 페이지당 8건.
