@@ -1,0 +1,30 @@
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 56px 40px;
+}
+
+.placeholder__screen {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.placeholder__title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.placeholder__owner {
+  font-size: 14px;
+  color: var(--color-text-sub);
+}
+
+.placeholder code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--color-bg-sidebar);
+  font-size: 13px;
+}

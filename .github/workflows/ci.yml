@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   front:
+    # ⚠️ job 이름은 develop 브랜치 보호의 필수 체크 이름이므로 바꾸지 말 것 (테스트도 이 job에서 실행)
     name: front (lint, build)
     runs-on: ubuntu-latest
     defaults:
@@ -30,6 +31,7 @@ jobs:
           cache-dependency-path: front/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm test
       - run: npm run build
 
   backend:
