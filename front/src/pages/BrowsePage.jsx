@@ -54,7 +54,7 @@ export default function BrowsePage() {
         <BrowseFilters key={queryKey} initial={query} onSubmit={(next) => go({ ...next, page: 1 })} />
       </header>
 
-      <main className="browse__body">
+      <div className="browse__body">
         {error ? (
           <div className="browse__message" role="alert">
             <p className="browse__message-title">습득물을 불러오지 못했어요</p>
@@ -90,7 +90,7 @@ export default function BrowsePage() {
         <p className="disclaimer browse__footer">
           내 물건과 비슷한 습득물을 점수순으로 보려면 <Link to="/">새 검색</Link>을 이용하세요
         </p>
-      </main>
+      </div>
     </div>
   )
 }
