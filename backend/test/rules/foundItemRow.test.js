@@ -46,6 +46,17 @@ describe('toFoundItemRow', () => {
     expect(toFoundItemRow(item({ atcId: 'X123' }), { source: 'police' }).reg_ymd).toBe('2026-11-09')
   })
 
+  it('접수일이 습득일보다 앞이거나 60일 넘게 뒤면 습득일로 대신한다', () => {
+    // 포털기관: L0224 → 습득일(11/5)과 가장 가까운 해는 2027-02-24 (111일 뒤) → 믿을 수 없음
+    expect(toFoundItemRow(item({ atcId: 'V0001350L02240002', fdYmd: '2026-11-05' }), { source: 'portal' }).reg_ymd).toBe(
+      '2026-11-05',
+    )
+    // 경찰서: 접수일(5/6)이 습득일(11/9)보다 앞
+    expect(toFoundItemRow(item({ atcId: 'F2026050600000001' }), { source: 'police' }).reg_ymd).toBe('2026-11-09')
+    // 60일 뒤까지는 그대로
+    expect(toFoundItemRow(item({ atcId: 'F2027010800000001' }), { source: 'police' }).reg_ymd).toBe('2027-01-08')
+  })
+
   it('atcId의 날짜가 없는 날짜면 습득일로 대신한다', () => {
     expect(toFoundItemRow(item({ atcId: 'F2026023000000001' }), { source: 'police' }).reg_ymd).toBe('2026-11-09')
   })

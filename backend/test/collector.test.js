@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { COLLECT_ROWS, configuredSources, createCollector } from '../src/services/collector.js'
+import { COLLECT_ROWS, MISSING_TOLERANCE, configuredSources, createCollector } from '../src/services/collector.js'
 import { REGIONS } from '../src/rules/foundItemCodes.js'
 
 const NOW = () => new Date('2026-11-13T03:00:00Z') // 한국 시간 11/13 12시
@@ -97,27 +97,46 @@ describe('createCollector', () => {
     expect(repo.saved.size).toBe(COLLECT_ROWS * 2 + 5)
   })
 
-  it('지역별 합이 전체보다 적으면 지역 없이 한 번 더 받아 빠진 것을 채운다 (기존 region은 유지)', async () => {
-    const api = fakePoliceApi({
-      police: {
-        [seoul.code]: [makeItem(1)],
-        ALL: [makeItem(1), makeItem(9)], // 9번은 지역 코드가 없는 습득물
-      },
-    })
+  it('이름을 정할 수 없는 지역 코드(LCG000 등)도 받아서 region 없이 저장한다', async () => {
+    const api = fakePoliceApi({ police: { [seoul.code]: [makeItem(1)], LCG000: [makeItem(2)] } })
     const repo = fakeRepo()
     const collector = createCollector({ policeApi: api, repo, sources: ['police'], days: 7, now: NOW, log: () => {} })
 
     const result = await collector.collectOnce()
 
-    expect(result.police.filledWithoutRegion).toBe(true)
-    expect(result.police.inserted).toBe(2)
-    expect(repo.saved.get(`${makeItem(1).atcId}/1`).region).toBe('서울')
-    expect(repo.saved.get(`${makeItem(9).atcId}/1`).region).toBeNull()
+    expect(repo.saved.get(`${makeItem(2).atcId}/1`).region).toBeNull()
+    expect(result.police.filledWithoutRegion).toBe(false) // 지역별 합 = 전체
   })
 
-  it('한 지역이 실패해도 나머지는 계속하고, 빠진 것은 지역 없이 채운다', async () => {
+  it(`지역별 합이 전체보다 ${MISSING_TOLERANCE}건 넘게 적으면 지역 없이 한 번 더 받아 채운다 (기존 region은 유지)`, async () => {
+    // 지역 코드로 안 잡히는 습득물이 많은 경우
+    const unknown = Array.from({ length: MISSING_TOLERANCE + 1 }, (_, i) => makeItem(100 + i))
+    const api = fakePoliceApi({ police: { [seoul.code]: [makeItem(1)], ALL: [makeItem(1), ...unknown] } })
+    const repo = fakeRepo()
+    const collector = createCollector({ policeApi: api, repo, sources: ['police'], days: 7, now: NOW, log: () => {} })
+
+    const result = await collector.collectOnce()
+
+    expect(result.police).toMatchObject({ filledWithoutRegion: true, missing: MISSING_TOLERANCE + 1 })
+    expect(result.police.inserted).toBe(MISSING_TOLERANCE + 2)
+    expect(repo.saved.get(`${makeItem(1).atcId}/1`).region).toBe('서울')
+    expect(repo.saved.get(`${makeItem(100).atcId}/1`).region).toBeNull()
+  })
+
+  it('몇 건 차이(수집 중 새로 등록된 것)는 다시 받지 않는다', async () => {
+    const api = fakePoliceApi({ police: { [seoul.code]: [makeItem(1)], ALL: [makeItem(1), makeItem(2)] } })
+    const collector = createCollector({ policeApi: api, repo: fakeRepo(), sources: ['police'], days: 7, now: NOW, log: () => {} })
+
+    const result = await collector.collectOnce()
+
+    expect(result.police).toMatchObject({ filledWithoutRegion: false, missing: 1 })
+    expect(api.calls.filter((c) => !c.regionCode && c.numOfRows === COLLECT_ROWS)).toHaveLength(0)
+  })
+
+  it('한 지역이 실패해도 나머지는 계속하고, 빠진 것이 많으면 지역 없이 채운다', async () => {
+    const seoulItems = Array.from({ length: MISSING_TOLERANCE + 1 }, (_, i) => makeItem(i))
     const api = fakePoliceApi(
-      { police: { [seoul.code]: [makeItem(1)], [busan.code]: [makeItem(2)] } },
+      { police: { [seoul.code]: seoulItems, [busan.code]: [makeItem(900)] } },
       { failRegion: seoul.code },
     )
     const repo = fakeRepo()
@@ -128,7 +147,7 @@ describe('createCollector', () => {
 
     expect(result.police.failedRegions).toEqual(['서울'])
     expect(result.police.filledWithoutRegion).toBe(true)
-    expect(repo.saved.size).toBe(2)
+    expect(repo.saved.size).toBe(MISSING_TOLERANCE + 2)
     expect(log).toHaveBeenCalledWith(expect.stringContaining('서울 실패'))
   })
 
