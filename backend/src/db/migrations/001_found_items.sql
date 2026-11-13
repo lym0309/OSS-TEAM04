@@ -11,6 +11,7 @@ CREATE TABLE found_items (
   prdt_cl_nm      VARCHAR(100) NOT NULL COMMENT '분류 prdtClNm (예: 지갑 > 여성용 지갑)',
   clr_nm          VARCHAR(50)  NOT NULL COMMENT '색상 clrNm (예: 블랙(검정))',
   fd_ymd          DATE         NOT NULL COMMENT '습득일 fdYmd',
+  reg_ymd         DATE         NOT NULL COMMENT '접수일 (atcId에서 계산. 포털기관은 연도가 없어 습득일 기준으로 정함)',
   dep_place       VARCHAR(100) NOT NULL COMMENT '보관장소 depPlace',
   img_url         VARCHAR(300) NOT NULL COMMENT '사진 URL fdFilePathImg',
 
@@ -28,7 +29,7 @@ CREATE TABLE found_items (
   detail_org_id     VARCHAR(20)  NULL COMMENT '기관 ID orgId',
   detail_org_nm     VARCHAR(100) NULL COMMENT '기관명 orgNm',
   detail_tel        VARCHAR(30)  NULL COMMENT '전화 tel',
-  detail_memo       VARCHAR(500) NULL COMMENT '특이사항 (uniq의 "특이사항 :" 뒤)',
+  detail_memo       VARCHAR(1000) NULL COMMENT '특이사항 (uniq의 "특이사항 :" 뒤)',
   detail_fetched_at DATETIME     NULL COMMENT '상세 조회 시각',
 
   -- 수집 기록
@@ -37,7 +38,7 @@ CREATE TABLE found_items (
 
   PRIMARY KEY (atc_id, fd_sn),
   INDEX idx_fd_ymd (fd_ymd),
-  INDEX idx_first_seen (first_seen_at),
-  INDEX idx_filter (category, color_family, region, fd_ymd)
+  INDEX idx_reg (reg_ymd, atc_id) COMMENT '최신 접수순 정렬',
+  INDEX idx_first_seen (first_seen_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci
   COMMENT = '경찰청 습득물 (경찰서 + 포털기관)';
