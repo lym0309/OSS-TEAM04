@@ -60,5 +60,26 @@ npm run migrate    # 아직 실행 안 된 파일만 번호순으로 실행
 | Method | Path | 설명 |
 |---|---|---|
 | GET | `/api/health` | 서버·DB 상태 (`200 {status:"ok", db:"ok"}` / DB 실패 시 `503`) |
+| GET | `/api/found-items` | 전체 습득물 (아래 참고) |
+| GET | `/api/found-items/filters` | 전체 습득물 필터 선택지 `{ categories, colors, regions, periods, defaultPeriod }` |
+
+### `GET /api/found-items?q=&cat=&clr=&region=&period=&page=`
+경찰청 습득물(경찰관서 + 포털기관) 목록. 점수 계산 없이 최신 접수순(`atcId`의 접수일 기준), 페이지당 8건.
+
+| 쿼리 | 값 | 기본 |
+|---|---|---|
+| `q` | 물품명·분류명 검색어 (50자 이하) | 전체 |
+| `cat` | 대분류 이름 (예: `지갑`) | 전체 |
+| `clr` | 색 계열 (예: `검정`, `흰색`) | 전체 |
+| `region` | 시·도 (예: `서울`) | 전체 |
+| `period` | `3` · `7` · `30` (일, 오늘 포함) | `7` |
+| `page` | 1~625 | `1` |
+
+응답: `{ items, totalCount, page, pageSize, totalPages }`. `items`는 경찰청 필드명 그대로 (`atcId, fdSn, fdPrdtNm, prdtClNm, clrNm, fdYmd, depPlace, fdFilePathImg`) + `isNew`(최근 3일).
+잘못된 쿼리는 `400`, 경찰청 API 오류는 `502`.
+
+- 경찰청 API는 검색어·색상 필터를 지원하지 않아, `q`·`clr`가 있으면 기간 내 전체를 받아 서버에서 거릅니다. 메모리(192MB) 때문에 한 페이지씩 받아 처음 요청은 느리고(7일 약 10초, 30일 약 50초) 같은 조건은 10분간 캐시됩니다.
+- 포털기관 API는 접수순이 아니라 기관번호순으로 줘서, `q`·`clr`가 없는 기본 목록에서는 포털기관 항목 순서가 대략적입니다 (검색 시에는 정확). 습득물 DB 수집(#16) 후 해결 예정입니다.
+- 넘겨 볼 수 있는 건 앞 5,000건(625페이지)까지이고, `totalCount`는 실제 건수입니다.
 
 에러 응답 형식: `{ "error": { "message": "..." } }`

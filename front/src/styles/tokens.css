@@ -1,0 +1,60 @@
+/*
+ * 디자인 토큰 (확정 시안 jupjup_handoff 기준)
+ * 색·간격·글자 크기는 확정값이므로, 화면에서는 hex 대신 이 변수를 쓴다.
+ */
+:root {
+  /* 폰트 */
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', system-ui, sans-serif;
+
+  /* 주색 */
+  --color-primary: #2f7a80;
+  --color-primary-dark: #245f64;
+  --color-primary-bg: #e6f0f0;       /* 일치 칩 배경 */
+  --color-primary-bg-soft: #eef5f4;  /* 선택된 카드·편집 중 칩 */
+  --color-primary-bg-tile: #eaf1f1;  /* 썸네일 대분류 타일 */
+  --color-primary-icon-bg: #dfeaea;  /* 사이드바 "새 검색" 원 */
+
+  /* 텍스트 */
+  --color-text: #1f2326;
+  --color-text-sub: #6b7075;
+  --color-text-muted: #8a8f94;
+  --color-text-strong-gray: #4a4f54;
+  --color-tile-label: #4e6466;
+
+  /* 배경 */
+  --color-bg: #f7f6f2;          /* 본문 */
+  --color-bg-sidebar: #f1f0eb;  /* 사이드바, 원문 박스, 기타 썸네일 */
+  --color-surface: #ffffff;     /* 카드 */
+  --color-ring-track: #ecebe6;  /* 점수 링 배경, 칩 ✕ 버튼 */
+
+  /* 보더 */
+  --color-border: #e7e5df;
+  --color-border-card: #ebe9e3;
+  --color-border-input: #d6d4cd;
+  --color-border-panel: #e2e0da;  /* 입력 카드, 조건 카드 */
+  --color-border-chip: #d9e5e5;
+  --color-border-dashed: #c9c7c0;
+  --color-divider: #eeede8;
+
+  /* 매칭 상태 (문구 규칙표 1번) */
+  --color-match: #2f7a80;          /* 일치 80↑ */
+  --color-partial-bg: #f6efe2;     /* 부분 일치 50~79 */
+  --color-partial-text: #7a5a20;
+  --color-partial-bar: #c9a24a;
+  --color-mismatch-bar: #b8b6b0;   /* 불일치 50↓ */
+
+  /* 오류 */
+  --color-error: #b4532a;
+
+  /* 모양 */
+  --radius-card: 16px;
+  --radius-card-sm: 14px;
+  --radius-button: 12px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(30, 40, 40, 0.04);
+  --shadow-popover: 0 6px 20px rgba(30, 40, 40, 0.08);
+
+  /* 레이아웃 */
+  --sidebar-width: 72px;
+  --page-min-width: 1024px;
+}

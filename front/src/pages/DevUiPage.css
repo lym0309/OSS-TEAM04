@@ -1,0 +1,68 @@
+.dev-ui {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 40px;
+}
+
+.dev-ui h1 {
+  font-size: 28px;
+}
+
+.dev-ui h2 {
+  margin-bottom: 14px;
+  font-size: 16px;
+  color: var(--color-text-sub);
+}
+
+.dev-ui__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.dev-ui__row--top {
+  align-items: flex-start;
+}
+
+.dev-ui__swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 120px;
+  font-size: 12px;
+}
+
+.dev-ui__swatch span {
+  height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.dev-ui__swatch code {
+  color: var(--color-text-muted);
+  font-size: 10.5px;
+}
+
+.dev-ui__thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 120px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-sub);
+}
+
+.dev-ui__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+.dev-ui__grid .card {
+  overflow: hidden;
+}
