@@ -1,0 +1,178 @@
+import { describe, expect, it, vi } from 'vitest'
+import { COLLECT_ROWS, configuredSources, createCollector } from '../src/services/collector.js'
+import { REGIONS } from '../src/rules/foundItemCodes.js'
+
+const NOW = () => new Date('2026-11-13T03:00:00Z') // 한국 시간 11/13 12시
+
+const makeItem = (n, over = {}) => ({
+  atcId: `F20261112${String(n).padStart(8, '0')}`,
+  fdSn: '1',
+  fdPrdtNm: `물건${n}`,
+  prdtClNm: '지갑 > 남성용 지갑',
+  clrNm: '블랙(검정)',
+  fdYmd: '2026-11-12',
+  depPlace: '서울마포경찰서',
+  fdFilePathImg: 'https://x/no_img.gif',
+  ...over,
+})
+
+/**
+ * 가짜 경찰청 API. data: { [source]: { [regionCode | 'ALL']: item[] } }
+ * 'ALL'이 없으면 지역별 목록을 모두 합친 것이 전체
+ */
+function fakePoliceApi(data, { failRegion } = {}) {
+  const calls = []
+  return {
+    calls,
+    listFoundItems: vi.fn(async (source, params) => {
+      calls.push({ source, ...params })
+      if (failRegion && params.regionCode === failRegion) throw new Error('HTTP 500')
+      const bySource = data[source] ?? {}
+      const list = params.regionCode
+        ? (bySource[params.regionCode] ?? [])
+        : (bySource.ALL ?? Object.values(bySource).flat())
+      const start = (params.pageNo - 1) * params.numOfRows
+      return { totalCount: list.length, items: list.slice(start, start + params.numOfRows) }
+    }),
+  }
+}
+
+function fakeRepo() {
+  const saved = new Map() // key → row (실제 DB처럼 region은 NULL이면 기존 값 유지)
+  return {
+    saved,
+    upsertMany: vi.fn(async (rows) => {
+      let inserted = 0
+      for (const row of rows) {
+        const key = `${row.atc_id}/${row.fd_sn}`
+        const prev = saved.get(key)
+        if (!prev) inserted++
+        saved.set(key, { ...row, region: row.region ?? prev?.region ?? null })
+      }
+      return { inserted, updated: rows.length - inserted }
+    }),
+  }
+}
+
+const seoul = REGIONS.find((r) => r.name === '서울')
+const busan = REGIONS.find((r) => r.name === '부산')
+
+describe('createCollector', () => {
+  it('지역별로 받아 region을 채워 저장한다', async () => {
+    const api = fakePoliceApi({
+      police: { [seoul.code]: [makeItem(1), makeItem(2)], [busan.code]: [makeItem(3)] },
+    })
+    const repo = fakeRepo()
+    const collector = createCollector({ policeApi: api, repo, sources: ['police'], days: 30, now: NOW, log: () => {} })
+
+    const result = await collector.collectOnce()
+
+    expect(result.police).toMatchObject({ total: 3, saved: 3, inserted: 3, skipped: 0, failedRegions: [] })
+    expect([...repo.saved.values()].map((r) => [r.fd_prdt_nm, r.region])).toEqual([
+      ['물건1', '서울'],
+      ['물건2', '서울'],
+      ['물건3', '부산'],
+    ])
+    // 지역별 합 = 전체라 지역 없이 다시 받지 않는다
+    expect(result.police.filledWithoutRegion).toBe(false)
+  })
+
+  it('최근 N일 (오늘 포함)을 요청한다', async () => {
+    const api = fakePoliceApi({})
+    const collector = createCollector({ policeApi: api, repo: fakeRepo(), sources: ['police'], days: 30, now: NOW, log: () => {} })
+    await collector.collectOnce()
+    expect(api.calls[0]).toMatchObject({ startYmd: '20261015', endYmd: '20261113' })
+  })
+
+  it('여러 페이지를 끝까지 받는다', async () => {
+    const many = Array.from({ length: COLLECT_ROWS * 2 + 5 }, (_, i) => makeItem(i))
+    const api = fakePoliceApi({ police: { [seoul.code]: many } })
+    const repo = fakeRepo()
+    const collector = createCollector({ policeApi: api, repo, sources: ['police'], days: 7, now: NOW, log: () => {} })
+
+    await collector.collectOnce()
+
+    const seoulPages = api.calls.filter((c) => c.regionCode === seoul.code).map((c) => c.pageNo)
+    expect(seoulPages).toEqual([1, 2, 3])
+    expect(repo.saved.size).toBe(COLLECT_ROWS * 2 + 5)
+  })
+
+  it('지역별 합이 전체보다 적으면 지역 없이 한 번 더 받아 빠진 것을 채운다 (기존 region은 유지)', async () => {
+    const api = fakePoliceApi({
+      police: {
+        [seoul.code]: [makeItem(1)],
+        ALL: [makeItem(1), makeItem(9)], // 9번은 지역 코드가 없는 습득물
+      },
+    })
+    const repo = fakeRepo()
+    const collector = createCollector({ policeApi: api, repo, sources: ['police'], days: 7, now: NOW, log: () => {} })
+
+    const result = await collector.collectOnce()
+
+    expect(result.police.filledWithoutRegion).toBe(true)
+    expect(result.police.inserted).toBe(2)
+    expect(repo.saved.get(`${makeItem(1).atcId}/1`).region).toBe('서울')
+    expect(repo.saved.get(`${makeItem(9).atcId}/1`).region).toBeNull()
+  })
+
+  it('한 지역이 실패해도 나머지는 계속하고, 빠진 것은 지역 없이 채운다', async () => {
+    const api = fakePoliceApi(
+      { police: { [seoul.code]: [makeItem(1)], [busan.code]: [makeItem(2)] } },
+      { failRegion: seoul.code },
+    )
+    const repo = fakeRepo()
+    const log = vi.fn()
+    const collector = createCollector({ policeApi: api, repo, sources: ['police'], days: 7, now: NOW, log })
+
+    const result = await collector.collectOnce()
+
+    expect(result.police.failedRegions).toEqual(['서울'])
+    expect(result.police.filledWithoutRegion).toBe(true)
+    expect(repo.saved.size).toBe(2)
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('서울 실패'))
+  })
+
+  it('저장할 수 없는 항목은 건너뛰고 센다', async () => {
+    const api = fakePoliceApi({ police: { [seoul.code]: [makeItem(1), makeItem(2, { fdYmd: '' })] } })
+    const repo = fakeRepo()
+    const collector = createCollector({ policeApi: api, repo, sources: ['police'], days: 7, now: NOW, log: () => {} })
+
+    const result = await collector.collectOnce()
+
+    expect(result.police).toMatchObject({ saved: 1, skipped: 1 })
+  })
+
+  it('출처 하나가 통째로 실패해도 다른 출처는 수집한다', async () => {
+    const api = fakePoliceApi({ portal: { [seoul.code]: [makeItem(1, { atcId: 'V0007751L11120001' })] } })
+    const original = api.listFoundItems
+    api.listFoundItems = vi.fn(async (source, params) => {
+      if (source === 'police' && !params.regionCode) throw new Error('인증키 오류')
+      return original(source, params)
+    })
+    const repo = fakeRepo()
+    const collector = createCollector({ policeApi: api, repo, sources: ['police', 'portal'], days: 7, now: NOW, log: () => {} })
+
+    const result = await collector.collectOnce()
+
+    expect(result.police).toEqual({ error: '인증키 오류' })
+    expect(result.portal).toMatchObject({ saved: 1 })
+    expect([...repo.saved.values()][0].source).toBe('portal')
+  })
+
+  it('한 번에 1,000건씩 요청한다 (메모리 제한)', async () => {
+    const api = fakePoliceApi({ police: { [seoul.code]: [makeItem(1)] } })
+    const collector = createCollector({ policeApi: api, repo: fakeRepo(), sources: ['police'], days: 7, now: NOW, log: () => {} })
+    await collector.collectOnce()
+    const pageSizes = new Set(api.calls.filter((c) => c.regionCode).map((c) => c.numOfRows))
+    expect([...pageSizes]).toEqual([1000])
+  })
+})
+
+describe('configuredSources', () => {
+  it('인증키가 있는 출처만', () => {
+    const env = (police, portal) => ({ policeApi: { serviceKey: police }, portalApi: { serviceKey: portal } })
+    expect(configuredSources(env('a', 'b'))).toEqual(['police', 'portal'])
+    expect(configuredSources(env('a', ''))).toEqual(['police'])
+    expect(configuredSources(env('', ''))).toEqual([])
+  })
+})

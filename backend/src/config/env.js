@@ -7,6 +7,11 @@ const toList = (value) =>
     .split(',')
     .map((v) => v.trim())
     .filter(Boolean)
+// 숫자 환경변수. 비었거나 숫자가 아니면 기본값, 범위를 넘으면 범위 안으로
+const toNumber = (value, fallback, min, max) => {
+  const n = value === undefined || value === '' ? NaN : Number(value)
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback
+}
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -35,5 +40,12 @@ export const env = {
       process.env.POLICE_PT_API_BASE_URL ??
       'https://apis.data.go.kr/1320000/LosPtfundInfoInqireService',
     serviceKey: process.env.POLICE_PT_API_KEY ?? '',
+  },
+
+  // 습득물 주기 수집 (services/collector.js)
+  collect: {
+    enabled: process.env.COLLECT_ENABLED !== 'false', // false면 서버에서 자동 수집 안 함 (npm run collect는 가능)
+    intervalMinutes: toNumber(process.env.COLLECT_INTERVAL_MINUTES, 60, 10, 24 * 60), // 수집이 끝난 뒤 다음 수집까지
+    days: toNumber(process.env.COLLECT_DAYS, 30, 1, 90), // 최근 며칠치를 받을지 (오늘 포함)
   },
 }

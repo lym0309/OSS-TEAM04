@@ -53,8 +53,40 @@ npm run migrate    # 아직 실행 안 된 파일만 번호순으로 실행
 ### 테이블
 | 테이블 | 파일 | 설명 |
 |---|---|---|
-| `found_items` | `001_found_items.sql` | 경찰청 습득물 (경찰서 + 포털기관). 목록 필드 + 수집 시 계산값(대분류·색 계열·지역·사진 여부) + 상세 필드(`detail_*`) |
+| `found_items` | `001_found_items.sql` | 경찰청 습득물 (경찰서 + 포털기관). 목록 필드 + 수집 시 계산값(대분류·색 계열·지역·사진 여부·접수일) + 상세 필드(`detail_*`). [습득물 수집](#습득물-수집)이 채움 |
 | `schema_migrations` | (자동 생성) | 마이그레이션 실행 기록 |
+
+## 습득물 수집
+서버가 **경찰청 API에서 최근 습득물을 주기적으로 받아 `found_items`에 저장**합니다.
+화면에서 요청할 때마다 경찰청 API를 부르지 않고, 이 테이블을 읽으면 됩니다.
+
+```bash
+npm run dev        # 서버를 띄우면 10초 뒤 한 번, 이후 끝날 때마다 60분 뒤 자동 수집
+npm run collect    # 지금 바로 한 번만 수집 (서버를 안 띄워도 됨)
+```
+- 매번 최근 30일치 전체를 다시 받아요 (늦게 등록된 습득물도 잡으려고). 결과는 `[collect]` 로그로 보여요.
+- `backend/.env`에 `POLICE_API_KEY`(경찰서) / `POLICE_PT_API_KEY`(포털기관) 중 **있는 키의 출처만** 수집해요. 둘 다 없으면 자동 수집이 꺼져요.
+- 서버 자동 수집과 `npm run collect`가 겹치면 나중 것은 건너뛰어요 (MySQL 잠금).
+
+| 환경변수 | 기본값 | 설명 |
+|---|---|---|
+| `COLLECT_ENABLED` | `true` | `false`면 서버에서 자동 수집 안 함 (로컬에서 API 호출을 아끼고 싶을 때) |
+| `COLLECT_INTERVAL_MINUTES` | `60` | 수집이 끝난 뒤 다음 수집까지 (10~1440분) |
+| `COLLECT_DAYS` | `30` | 습득일 기준 최근 며칠치를 받을지, 오늘 포함 (1~90일) |
+
+### 어떻게 저장되나
+| 컬럼 | 값 |
+|---|---|
+| `region` | 목록 API에 지역이 없어서 **지역 코드(17개 시·도)별로 나눠 받고**, 받은 지역 이름을 넣어요. 지역 코드로 안 잡히는 습득물은 지역 없이 한 번 더 받아 `NULL`로 저장 |
+| `category` / `color_family` | `prdtClNm`의 대분류 / `clrNm`의 색 계열 (`rules/colors.js`) |
+| `reg_ymd` | `atcId`에서 꺼낸 접수일 → "최신 접수순" 정렬용 |
+| `has_photo` | 사진 주소에 `no_img`가 없으면 `true` |
+| `first_seen_at` | **처음 수집한 시각.** 다시 수집해도 바뀌지 않아요 → 신규 후보 판정용 |
+| `last_seen_at` | 마지막으로 목록에서 본 시각. 매 수집마다 갱신 (오래 안 보이면 주인이 찾아간 것) |
+
+- 이미 있는 습득물은 목록 값만 새로 덮어써요. `detail_*`(상세 API 값)은 건드리지 않아요.
+- 메모리(192MB) 때문에 1,000건씩 받아 바로 저장하고, 출처도 하나씩 차례로 받아요.
+- 코드: `services/collector.js`(수집 순서) · `rules/foundItemRow.js`(API 항목 → 테이블 한 줄) · `db/foundItemsRepo.js`(저장 SQL) · `services/collectSchedule.js`(주기 실행)
 
 ## API
 | Method | Path | 설명 |
