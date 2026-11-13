@@ -5,8 +5,10 @@ import {
   daysBetween,
   isNewItem,
   matchesFilter,
-  mergeByLatest,
+  mergeByRegistration,
   periodRange,
+  registrationDate,
+  sortByRegistration,
   todayKst,
   totalPages,
 } from '../../src/rules/foundItemList.js'
@@ -41,27 +43,70 @@ describe('날짜 계산', () => {
   })
 })
 
-describe('mergeByLatest', () => {
-  const a = [{ id: 'a1', fdYmd: '2026-11-11' }, { id: 'a2', fdYmd: '2026-11-09' }, { id: 'a3', fdYmd: '2026-11-10' }]
-  const b = [{ id: 'b1', fdYmd: '2026-11-10' }, { id: 'b2', fdYmd: '2026-11-08' }]
-
-  it('습득일 최신순으로 합치고, 같은 날이면 앞 목록 먼저', () => {
-    expect(mergeByLatest([a, b]).map((x) => x.id)).toEqual(['a1', 'b1', 'a2', 'a3', 'b2'])
+describe('registrationDate (atcId → 접수일)', () => {
+  it('경찰관서: F + YYYYMMDD + 순번', () => {
+    expect(registrationDate({ atcId: 'F2026111100004030', fdYmd: '2026-11-09' })).toBe('20261111')
   })
 
-  it('각 목록 안의 순서는 유지한다', () => {
-    const merged = mergeByLatest([a, b]).map((x) => x.id)
-    expect(merged.indexOf('a2')).toBeLessThan(merged.indexOf('a3'))
+  it('포털기관: V + 기관번호 + (L) + MMDD + 순번, 연도는 습득일 기준', () => {
+    expect(registrationDate({ atcId: 'V0007751L11100002', fdYmd: '2026-11-10' })).toBe('20261110')
+    expect(registrationDate({ atcId: 'V000731611090002', fdYmd: '2026-11-05' })).toBe('20261109') // L 없는 형식
+  })
+
+  it('포털기관: 연말에 습득해 연초에 접수하면 다음 해', () => {
+    expect(registrationDate({ atcId: 'V0007751L01020002', fdYmd: '2026-12-30' })).toBe('20270102')
+  })
+
+  it('포털기관: 접수일이 습득일보다 조금 앞서는 이상한 데이터도 같은 해로', () => {
+    expect(registrationDate({ atcId: 'V0007751L10200002', fdYmd: '2026-10-23' })).toBe('20261020')
+  })
+
+  it('형식이 다르면 습득일', () => {
+    expect(registrationDate({ atcId: 'X123', fdYmd: '2026-11-08' })).toBe('20261108')
+  })
+})
+
+describe('mergeByRegistration', () => {
+  // 경찰관서는 API 순서가 접수순, 습득일은 순서와 상관없다
+  const a = [
+    { atcId: 'F2026111100000003', fdYmd: '2026-11-05' },
+    { atcId: 'F2026111000000002', fdYmd: '2026-11-10' },
+    { atcId: 'F2026110800000001', fdYmd: '2026-11-08' },
+  ]
+  const b = [
+    { atcId: 'V0000001L11100001', fdYmd: '2026-11-10' },
+    { atcId: 'V0000001L11090001', fdYmd: '2026-11-02' },
+  ]
+  const ids = (list) => list.map((x) => x.atcId)
+
+  it('접수일 최신순으로 합치고, 같은 날이면 앞 목록 먼저', () => {
+    expect(ids(mergeByRegistration([a, b]))).toEqual([
+      'F2026111100000003', 'F2026111000000002', 'V0000001L11100001', 'V0000001L11090001', 'F2026110800000001',
+    ])
   })
 
   it('limit만큼만 합치고, 앞부분만 합쳐도 전체 결과의 앞부분과 같다', () => {
-    const full = mergeByLatest([a, b])
-    expect(mergeByLatest([a, b], 3)).toEqual(full.slice(0, 3))
-    expect(mergeByLatest([a.slice(0, 2), b.slice(0, 2)], 2)).toEqual(full.slice(0, 2))
+    const full = mergeByRegistration([a, b])
+    expect(mergeByRegistration([a, b], 3)).toEqual(full.slice(0, 3))
+    expect(mergeByRegistration([a.slice(0, 2), b.slice(0, 2)], 2)).toEqual(full.slice(0, 2))
   })
 
   it('빈 목록', () => {
-    expect(mergeByLatest([[], []])).toEqual([])
+    expect(mergeByRegistration([[], []])).toEqual([])
+  })
+})
+
+describe('sortByRegistration', () => {
+  it('포털기관(기관번호순)을 접수일 최신순으로, 같은 날은 원래 순서 유지', () => {
+    const items = [
+      { atcId: 'V0000009L11010001', fdYmd: '2026-11-01' },
+      { atcId: 'V0000009L11100002', fdYmd: '2026-11-10' },
+      { atcId: 'V0000001L11100001', fdYmd: '2026-11-10' },
+      { atcId: 'V0000001L11050001', fdYmd: '2026-11-05' },
+    ]
+    expect(sortByRegistration(items).map((x) => x.atcId)).toEqual([
+      'V0000009L11100002', 'V0000001L11100001', 'V0000001L11050001', 'V0000009L11010001',
+    ])
   })
 })
 

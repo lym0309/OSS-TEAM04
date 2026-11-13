@@ -85,6 +85,33 @@ describe('foundItems.browse', () => {
     expect(byQAndColor.items.map((x) => x.atcId)).toEqual(['F1'])
   })
 
+  it('검색 시 포털기관 항목(기관번호순)은 접수일 최신순으로 다시 정렬해 합친다', async () => {
+    const police = [
+      item('F2026111100000002', '2026-11-11', { fdPrdtNm: '지갑' }),
+      item('F2026110900000001', '2026-11-09', { fdPrdtNm: '지갑' }),
+    ]
+    const portal = [
+      item('V0000009L11060001', '2026-11-06', { fdPrdtNm: '지갑' }),
+      item('V0000009L11100001', '2026-11-10', { fdPrdtNm: '지갑' }),
+      item('V0000001L11120001', '2026-11-12', { fdPrdtNm: '지갑' }),
+    ]
+    const svc = createFoundItemsService({ policeApi: fakePoliceApi({ police, portal }), now: NOW })
+    const { items } = await svc.browse({ ...baseQuery, q: '지갑' })
+    expect(items.map((x) => x.atcId)).toEqual([
+      'V0000001L11120001', 'F2026111100000002', 'V0000009L11100001', 'F2026110900000001', 'V0000009L11060001',
+    ])
+  })
+
+  it('검색 결과가 많으면 접수 최신 5,000건만 보관하고 건수는 전체', async () => {
+    // 오래된 것이 앞에 오는 포털기관 데이터: 최신 것이 잘리지 않아야 한다
+    const old = Array.from({ length: 6000 }, (_, i) => item(`V0000009L1101${String(i % 10000).padStart(4, '0')}`, '2026-11-01'))
+    const recent = item('V0000001L11120001', '2026-11-12')
+    const svc = createFoundItemsService({ policeApi: fakePoliceApi({ portal: [...old, recent] }), now: NOW })
+    const res = await svc.browse({ ...baseQuery, q: '물건' })
+    expect(res.totalCount).toBe(6001)
+    expect(res.items[0].atcId).toBe('V0000001L11120001')
+  })
+
   it('같은 조건은 캐시해서 다시 호출하지 않는다', async () => {
     const api = fakePoliceApi({ police: [item('F1', '2026-11-11')] })
     const svc = createFoundItemsService({ policeApi: api, now: NOW })
