@@ -23,10 +23,17 @@ export const env = {
     connectionLimit: Number(process.env.DB_CONNECTION_LIMIT ?? 5),
   },
 
+  // 경찰청 습득물 API는 두 종류: 경찰관서 습득물 / 포털기관(지하철·공항·대학 등 공공기관) 습득물
   policeApi: {
     baseUrl:
       process.env.POLICE_API_BASE_URL ??
       'https://apis.data.go.kr/1320000/LosfundInfoInqireService',
     serviceKey: process.env.POLICE_API_KEY ?? '',
+  },
+  portalApi: {
+    baseUrl:
+      process.env.POLICE_PT_API_BASE_URL ??
+      'https://apis.data.go.kr/1320000/LosPtfundInfoInqireService',
+    serviceKey: process.env.POLICE_PT_API_KEY ?? '',
   },
 }

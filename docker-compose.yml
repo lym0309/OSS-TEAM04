@@ -45,6 +45,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME:-zupzup}
       POLICE_API_KEY: ${POLICE_API_KEY:-}
+      POLICE_PT_API_KEY: ${POLICE_PT_API_KEY:-}
       TZ: Asia/Seoul
     ports:
       - "127.0.0.1:${BACKEND_HOST_PORT:-3000}:3000"
