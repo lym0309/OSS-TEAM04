@@ -15,6 +15,7 @@ import { SOURCE_NAMES } from './policeApi.js'
 
 export const COLLECT_ROWS = 1000 // 한 번에 받는 건수 (1,000건 ≈ XML 2MB)
 export const MISSING_TOLERANCE = 50 // 지역별 합과 전체 건수가 이만큼까지 차이 나는 건 넘어간다
+export const MAX_CONSECUTIVE_FAILURES = 3 // 지역이 연달아 이만큼 실패하면 (인증키 오류·API 장애) 그 출처는 이번 회차 중단
 
 // 수집할 지역 코드 (name이 null이면 region을 비워 저장)
 const COLLECT_REGIONS = [...REGIONS, ...UNMAPPED_REGION_CODES.map((code) => ({ name: null, code }))]
@@ -75,19 +76,34 @@ export function createCollector({ policeApi, repo, sources = SOURCE_NAMES, days,
 
     // 1. 지역별
     let regionalTotal = 0
+    let consecutiveFailures = 0
     for (const region of COLLECT_REGIONS) {
       try {
         const stat = await collectPass(source, range, region)
         regionalTotal += stat.total
         add(stat)
+        consecutiveFailures = 0
       } catch (err) {
         sum.failedRegions.push(region.name ?? region.code)
         log(`[collect] ${source} ${region.name ?? region.code} 실패: ${err.message}`)
+        // 남은 지역도 실패할 게 뻔하니 API 호출을 아낀다. 다음 회차에 다시 시도
+        if (++consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          throw new Error(`${MAX_CONSECUTIVE_FAILURES}개 지역이 연달아 실패해 중단 (${err.message})`)
+        }
       }
     }
 
     // 2. 빠진 것 채우기
-    const { totalCount } = await policeApi.listFoundItems(source, { ...range, pageNo: 1, numOfRows: 1 })
+    let totalCount
+    try {
+      ;({ totalCount } = await policeApi.listFoundItems(source, { ...range, pageNo: 1, numOfRows: 1 }))
+    } catch (err) {
+      // 지역별 수집은 이미 저장됐으니 결과는 남기고, 빠진 것 채우기만 건너뛴다
+      log(`[collect] ${source} 전체 건수 확인 실패, 빠진 것 채우기는 건너뜀: ${err.message}`)
+      sum.total = regionalTotal
+      sum.missing = 0
+      return sum
+    }
     sum.total = totalCount
     sum.missing = Math.max(0, totalCount - regionalTotal)
     if (sum.missing > MISSING_TOLERANCE) {

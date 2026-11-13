@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
-import { COLLECT_ROWS, MISSING_TOLERANCE, configuredSources, createCollector } from '../src/services/collector.js'
+import {
+  COLLECT_ROWS,
+  MAX_CONSECUTIVE_FAILURES,
+  MISSING_TOLERANCE,
+  configuredSources,
+  createCollector,
+} from '../src/services/collector.js'
 import { REGIONS } from '../src/rules/foundItemCodes.js'
 
 const NOW = () => new Date('2026-11-13T03:00:00Z') // 한국 시간 11/13 12시
@@ -151,6 +157,22 @@ describe('createCollector', () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining('서울 실패'))
   })
 
+  it('전체 건수 확인만 실패하면 지역별로 받은 결과는 남긴다', async () => {
+    const api = fakePoliceApi({ police: { [seoul.code]: [makeItem(1)] } })
+    const original = api.listFoundItems
+    api.listFoundItems = vi.fn(async (source, params) => {
+      if (!params.regionCode) throw new Error('HTTP 500')
+      return original(source, params)
+    })
+    const repo = fakeRepo()
+    const collector = createCollector({ policeApi: api, repo, sources: ['police'], days: 7, now: NOW, log: () => {} })
+
+    const result = await collector.collectOnce()
+
+    expect(result.police).toMatchObject({ total: 1, inserted: 1, filledWithoutRegion: false })
+    expect(repo.saved.size).toBe(1)
+  })
+
   it('저장할 수 없는 항목은 건너뛰고 센다', async () => {
     const api = fakePoliceApi({ police: { [seoul.code]: [makeItem(1), makeItem(2, { fdYmd: '' })] } })
     const repo = fakeRepo()
@@ -161,11 +183,11 @@ describe('createCollector', () => {
     expect(result.police).toMatchObject({ saved: 1, skipped: 1 })
   })
 
-  it('출처 하나가 통째로 실패해도 다른 출처는 수집한다', async () => {
+  it(`지역이 ${MAX_CONSECUTIVE_FAILURES}개 연달아 실패하면 그 출처는 중단하고 다른 출처는 수집한다`, async () => {
     const api = fakePoliceApi({ portal: { [seoul.code]: [makeItem(1, { atcId: 'V0007751L11120001' })] } })
     const original = api.listFoundItems
     api.listFoundItems = vi.fn(async (source, params) => {
-      if (source === 'police' && !params.regionCode) throw new Error('인증키 오류')
+      if (source === 'police') throw new Error('인증키 오류')
       return original(source, params)
     })
     const repo = fakeRepo()
@@ -173,7 +195,8 @@ describe('createCollector', () => {
 
     const result = await collector.collectOnce()
 
-    expect(result.police).toEqual({ error: '인증키 오류' })
+    expect(result.police.error).toMatch('연달아 실패')
+    expect(api.listFoundItems.mock.calls.filter(([s]) => s === 'police')).toHaveLength(MAX_CONSECUTIVE_FAILURES)
     expect(result.portal).toMatchObject({ saved: 1 })
     expect([...repo.saved.values()][0].source).toBe('portal')
   })
