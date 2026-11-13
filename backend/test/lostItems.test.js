@@ -68,6 +68,12 @@ describe('POST /api/lost-items', () => {
     expect(res.body.extracted).toBe(false)
   })
 
+  it('JSON이 깨진 요청은 400 + 한국어 안내', async () => {
+    const res = await request(setup().app).post('/api/lost-items').set('Content-Type', 'application/json').send('{"rawText":')
+    expect(res.status).toBe(400)
+    expect(res.body.error.message).toBe('요청 형식이 올바르지 않아요. (JSON)')
+  })
+
   it('문장이 짧거나 길거나 없으면 400', async () => {
     const { app, repo } = setup()
     for (const body of [{ rawText: '지 갑' }, { rawText: '가'.repeat(501) }, {}, { rawText: 42 }]) {

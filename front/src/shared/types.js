@@ -9,21 +9,22 @@
  */
 
 /**
- * 분실물 검색 조건 (POST /api/lost-items 응답, PATCH /api/lost-items/:id 요청)
+ * 분실물 검색 조건 (POST·GET·PATCH /api/lost-items 응답)
+ * 모르는 값은 null. 수정은 PATCH로 바꿀 필드만 보낸다 (null이면 지움, 코드는 서버가 계산)
  * @typedef {Object} SearchCondition
- * @property {string} lostItemId      분실물 ID (화면 사이에는 이것만 넘긴다)
- * @property {string} rawText         사용자가 입력한 원문
- * @property {string} itemName        물품 (예: 무선이어폰 케이스)
- * @property {string} [prdtClCd]      경찰청 물품 대분류 코드 (예: PRG000)
- * @property {string} [prdtClNm]      경찰청 물품 분류명 (예: 전자기기)
- * @property {string} [clrCd]         경찰청 색상 코드
- * @property {string} [clrNm]         색상 (예: 검정)
- * @property {string} [region]        지역명 (예: 서울)
- * @property {string} [lctCd]         경찰청 지역 코드 (예: LCA000)
- * @property {string} dateFrom        분실 날짜 시작 YYYY-MM-DD
- * @property {string} dateTo          분실 날짜 끝 YYYY-MM-DD
- * @property {string} [brand]         브랜드 (API 필드 없음 → 텍스트 키워드 매칭)
- * @property {string} [feature]       특징 (API 필드 없음 → 텍스트 키워드 매칭)
+ * @property {string} lostItemId        분실물 ID (화면 사이에는 이것만 넘긴다)
+ * @property {string} rawText           사용자가 입력한 원문
+ * @property {boolean} extracted        문장에서 조건을 뽑았는지 (true → 3a 조건 확인, false → 3b 직접 고르기)
+ * @property {string|null} itemName     물품 (예: 무선이어폰 케이스)
+ * @property {string|null} prdtClNm     물품 대분류 (예: 전자기기, codes.js CATEGORIES의 name)
+ * @property {string|null} prdtClCd     경찰청 대분류 코드 (예: PRG000) — 서버가 계산
+ * @property {string|null} clrNm        색 계열 (예: 검정, codes.js COLOR_FAMILIES)
+ * @property {string|null} region       지역 (예: 서울, codes.js REGIONS의 name)
+ * @property {string|null} lctCd        경찰청 지역 코드 (예: LCA000) — 서버가 계산
+ * @property {string|null} dateFrom     분실 날짜 시작 YYYY-MM-DD
+ * @property {string|null} dateTo       분실 날짜 끝 YYYY-MM-DD (시작 ≤ 끝 ≤ 오늘)
+ * @property {string|null} brand        브랜드 (API 필드 없음 → 텍스트 키워드 매칭)
+ * @property {string|null} feature      특징 (API 필드 없음 → 텍스트 키워드 매칭)
  */
 
 /**
