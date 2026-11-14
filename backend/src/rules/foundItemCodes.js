@@ -48,6 +48,12 @@ export const REGIONS = [
   { name: '제주', code: 'LCP000' },
 ]
 
+// 위 REGIONS에 없는 지역 코드. 수집할 때만 쓴다 (지역 이름은 정할 수 없어 비워 둠)
+// 2026-11 실제 API로 확인 (최근 30일 기준)
+//   LCG000: 거의 광주·전남 (목포·여수·순천·광주북부경찰서 등). 경찰서 약 2,000건, 포털기관 약 1,200건 → 가장 많음
+//   LCE000: 서울 일부 (몇 건), LCF000: 해외 공관·기타 (몇 건)
+export const UNMAPPED_REGION_CODES = ['LCG000', 'LCE000', 'LCF000']
+
 // 조회 기간 (일). 오늘 포함
 export const PERIODS = [3, 7, 30]
 export const DEFAULT_PERIOD = 7
