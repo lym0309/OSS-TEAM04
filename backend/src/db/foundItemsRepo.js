@@ -17,6 +17,7 @@ export const UPSERT_BATCH = 500
  * - 처음 보는 습득물: 새로 추가 (first_seen_at = 지금 → 신규 후보 판정에 사용)
  * - 이미 있는 습득물: 목록 값 갱신 + last_seen_at = 지금. first_seen_at은 그대로
  * - region: 지역을 모르고 받은 경우(NULL)에는 기존 값을 지우지 않는다
+ * - gone_at: 다시 보였으니 "사라짐" 표시를 지운다
  */
 export function buildUpsert(rows) {
   const sql =
@@ -24,7 +25,8 @@ export function buildUpsert(rows) {
      ON DUPLICATE KEY UPDATE
        ${OVERWRITE_COLUMNS.map((c) => `${c} = new.${c}`).join(',\n       ')},
        region = COALESCE(new.region, found_items.region),
-       last_seen_at = CURRENT_TIMESTAMP`
+       last_seen_at = CURRENT_TIMESTAMP,
+       gone_at = NULL`
   const values = [rows.map((row) => UPSERT_COLUMNS.map((c) => row[c]))]
   return { sql, values }
 }
@@ -62,7 +64,54 @@ export function createFoundItemsRepo(pool) {
     return { inserted, updated: rows.length - inserted }
   }
 
-  return { upsertMany }
+  /**
+   * 기간 안에서 before 이후로 한 번도 안 보인 습득물에 "사라짐" 표시 (30일 전체 수집 뒤에만 호출)
+   * @param {string} before  이번 수집 시작 시각 (DB 시각, startRun의 startedAt)
+   * @returns {Promise<number>} 새로 표시한 수
+   */
+  async function markGone(source, { fromYmd, toYmd }, before) {
+    const [result] = await pool.query(
+      `UPDATE found_items SET gone_at = CURRENT_TIMESTAMP
+       WHERE source = ? AND fd_ymd BETWEEN ? AND ? AND last_seen_at < ? AND gone_at IS NULL`,
+      [source, fromYmd, toYmd, before],
+    )
+    return result.affectedRows
+  }
+
+  return { upsertMany, markGone }
+}
+
+// 수집 기록 (collect_runs)
+export function createCollectRunsRepo(pool) {
+  /** 수집 시작 기록. 시각은 DB 기준 (last_seen_at과 비교하므로) */
+  async function start(mode, days) {
+    const [result] = await pool.query('INSERT INTO collect_runs (mode, days) VALUES (?, ?)', [mode, days])
+    const [[row]] = await pool.query('SELECT started_at FROM collect_runs WHERE id = ?', [result.insertId])
+    return { id: result.insertId, startedAt: row.started_at }
+  }
+
+  async function finish(id, { ok, result }) {
+    await pool.query('UPDATE collect_runs SET finished_at = CURRENT_TIMESTAMP, ok = ?, result = ? WHERE id = ?', [
+      ok,
+      JSON.stringify(result),
+      id,
+    ])
+  }
+
+  /**
+   * 마지막 수집이 몇 분 전에 끝났는지, 마지막 성공한 전체 수집이 몇 분 전에 시작했는지 (없으면 null)
+   * @returns {Promise<{ minutesSinceLast: number|null, minutesSinceFull: number|null }>}
+   */
+  async function lastRuns() {
+    const [[row]] = await pool.query(
+      `SELECT
+         (SELECT TIMESTAMPDIFF(MINUTE, MAX(finished_at), NOW()) FROM collect_runs) AS minutes_since_last,
+         (SELECT TIMESTAMPDIFF(MINUTE, MAX(started_at), NOW()) FROM collect_runs WHERE mode = 'full' AND ok) AS minutes_since_full`,
+    )
+    return { minutesSinceLast: row.minutes_since_last, minutesSinceFull: row.minutes_since_full }
+  }
+
+  return { start, finish, lastRuns }
 }
 
 const LOCK_NAME = 'zupzup_collect'

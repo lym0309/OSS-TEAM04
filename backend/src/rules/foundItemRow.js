@@ -2,6 +2,7 @@
 // 수집기가 저장하기 전에 필터·정렬·매칭에 쓸 값(category, color_family, has_photo, reg_ymd)을 미리 계산한다.
 import { colorFamily } from './colors.js'
 import { majorCategory } from './foundItemCodes.js'
+import { isValidYmd } from './dates.js'
 import { registrationDate } from './foundItemList.js'
 
 // 컬럼 길이 (migrations/001_found_items.sql 과 맞출 것). 넘치면 잘라서 저장
@@ -17,13 +18,6 @@ const MAX_LEN = {
 }
 
 const text = (value, column) => String(value ?? '').trim().slice(0, MAX_LEN[column])
-
-// 실제로 있는 날짜인지 (YYYY-MM-DD). 2026-02-30 같은 값은 false
-export function isValidYmd(ymd) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd ?? '')) return false
-  const date = new Date(`${ymd}T00:00:00Z`)
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === ymd
-}
 
 // 사진 주소에 no_img가 들어 있으면 "사진 없음" 기본 이미지
 export function hasRealPhoto(url = '') {

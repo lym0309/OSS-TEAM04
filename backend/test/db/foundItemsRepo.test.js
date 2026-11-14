@@ -4,6 +4,7 @@ import {
   UPSERT_COLUMNS,
   buildUpsert,
   countDuplicates,
+  createCollectRunsRepo,
   createFoundItemsRepo,
   withCollectLock,
 } from '../../src/db/foundItemsRepo.js'
@@ -18,6 +19,8 @@ describe('buildUpsert', () => {
     // 다시 보면 last_seen_at만 갱신하고 first_seen_at은 건드리지 않는다
     expect(sql).toContain('last_seen_at = CURRENT_TIMESTAMP')
     expect(sql).not.toContain('first_seen_at')
+    // 다시 보이면 "사라짐" 표시를 지운다
+    expect(sql).toContain('gone_at = NULL')
     // 지역을 모르고 받은 경우 기존 지역 유지
     expect(sql).toContain('region = COALESCE(new.region, found_items.region)')
     // 키는 덮어쓰지 않는다
@@ -100,5 +103,43 @@ describe('withCollectLock', () => {
     await expect(withCollectLock(pool, async () => Promise.reject(new Error('boom')))).rejects.toThrow('boom')
     expect(conn.query).toHaveBeenLastCalledWith('SELECT RELEASE_LOCK(?)', ['zupzup_collect'])
     expect(conn.release).toHaveBeenCalled()
+  })
+})
+
+describe('createFoundItemsRepo.markGone', () => {
+  it('출처·기간 안에서 before 이후 안 보인 것만, 이미 표시된 건 빼고', async () => {
+    const pool = { query: vi.fn(async () => [{ affectedRows: 3 }]) }
+    const range = { fromYmd: '2026-10-15', toYmd: '2026-11-13' }
+    expect(await createFoundItemsRepo(pool).markGone('police', range, '2026-11-13 12:00:00')).toBe(3)
+
+    const [sql, params] = pool.query.mock.calls[0]
+    expect(sql).toMatch(/SET gone_at = CURRENT_TIMESTAMP/)
+    expect(sql).toMatch(/last_seen_at < \?/)
+    expect(sql).toMatch(/gone_at IS NULL/)
+    expect(params).toEqual(['police', '2026-10-15', '2026-11-13', '2026-11-13 12:00:00'])
+  })
+})
+
+describe('createCollectRunsRepo', () => {
+  it('start: 기록을 만들고 DB 시각을 돌려준다', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce([{ insertId: 5 }])
+        .mockResolvedValueOnce([[{ started_at: '2026-11-13 12:00:00' }]]),
+    }
+    expect(await createCollectRunsRepo(pool).start('full', 30)).toEqual({ id: 5, startedAt: '2026-11-13 12:00:00' })
+    expect(pool.query.mock.calls[0][1]).toEqual(['full', 30])
+  })
+
+  it('finish: 결과를 JSON으로 저장', async () => {
+    const pool = { query: vi.fn(async () => [{}]) }
+    await createCollectRunsRepo(pool).finish(5, { ok: true, result: { police: { inserted: 1 } } })
+    expect(pool.query.mock.calls[0][1]).toEqual([true, '{"police":{"inserted":1}}', 5])
+  })
+
+  it('lastRuns: 분 단위 경과 시간 (없으면 null)', async () => {
+    const pool = { query: vi.fn(async () => [[{ minutes_since_last: 12, minutes_since_full: null }]]) }
+    expect(await createCollectRunsRepo(pool).lastRuns()).toEqual({ minutesSinceLast: 12, minutesSinceFull: null })
   })
 })

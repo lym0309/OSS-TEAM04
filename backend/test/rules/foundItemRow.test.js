@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasRealPhoto, isValidYmd, toFoundItemRow } from '../../src/rules/foundItemRow.js'
+import { hasRealPhoto, toFoundItemRow } from '../../src/rules/foundItemRow.js'
 
 const item = (over = {}) => ({
   atcId: 'F2026111100004030',
@@ -88,14 +88,7 @@ describe('toFoundItemRow', () => {
   })
 })
 
-describe('isValidYmd / hasRealPhoto', () => {
-  it('실제 있는 날짜만 true', () => {
-    expect(isValidYmd('2026-02-28')).toBe(true)
-    expect(isValidYmd('2026-02-30')).toBe(false)
-    expect(isValidYmd('20260228')).toBe(false)
-    expect(isValidYmd(undefined)).toBe(false)
-  })
-
+describe('hasRealPhoto', () => {
   it('no_img가 들어간 주소나 빈 값은 사진 없음', () => {
     expect(hasRealPhoto('')).toBe(false)
     expect(hasRealPhoto('https://x/img02_no_img.gif')).toBe(false)

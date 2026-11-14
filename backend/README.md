@@ -62,10 +62,11 @@ npm run migrate    # 아직 실행 안 된 파일만 번호순으로 실행
 
 ```bash
 npm run dev        # 서버를 띄우면 10초 뒤 한 번, 이후 끝날 때마다 60분 뒤 자동 수집
-npm run collect    # 지금 바로 한 번만 수집 (서버를 안 띄워도 됨)
+npm run collect    # 지금 바로 30일 전체 수집 (서버를 안 띄워도 됨)
 ```
-- 매번 최근 30일치 전체를 다시 받아요 (늦게 등록된 습득물도 잡으려고). 결과는 `[collect]` 로그로 보여요.
-- 실측 (2026-11-13, 30일치 약 9.4만 건): 1회 약 6분 (경찰서 2분 + 포털기관 4분), 메모리 최대 약 130MB
+- **하루 한 번은 최근 30일 전체**, 그 사이 회차는 **최근 3일만** 받아요 (API 호출 수를 줄이려고). 결과는 `[collect]` 로그와 `collect_runs` 테이블(`003_collect_runs.sql`)에 남아요.
+- 서버를 다시 켰을 때 조금 전에 수집했으면 그 회차는 건너뛰어요 (`npm run dev`는 파일 저장마다 재시작).
+- 실측 (2026-11-13, 30일치 약 9.4만 건): 전체 수집 약 6분 (경찰서 2분 + 포털기관 4분), 메모리 최대 약 130MB
 - `backend/.env`에 `POLICE_API_KEY`(경찰서) / `POLICE_PT_API_KEY`(포털기관) 중 **있는 키의 출처만** 수집해요. 둘 다 없으면 자동 수집이 꺼져요.
 - 서버 자동 수집과 `npm run collect`가 겹치면 나중 것은 건너뛰어요 (MySQL 잠금).
 
@@ -73,7 +74,8 @@ npm run collect    # 지금 바로 한 번만 수집 (서버를 안 띄워도 �
 |---|---|---|
 | `COLLECT_ENABLED` | `true` | `false`면 서버에서 자동 수집 안 함 (로컬에서 API 호출을 아끼고 싶을 때) |
 | `COLLECT_INTERVAL_MINUTES` | `60` | 수집이 끝난 뒤 다음 수집까지 (10~1440분) |
-| `COLLECT_DAYS` | `30` | 습득일 기준 최근 며칠치를 받을지, 오늘 포함 (1~90일) |
+| `COLLECT_DAYS` | `30` | 하루 한 번 전체 수집 기간. 습득일 기준, 오늘 포함 (1~90일) |
+| `COLLECT_RECENT_DAYS` | `3` | 그 사이 회차의 수집 기간 (1~30일) |
 
 ### 어떻게 저장되나
 | 컬럼 | 값 |
@@ -83,11 +85,13 @@ npm run collect    # 지금 바로 한 번만 수집 (서버를 안 띄워도 �
 | `reg_ymd` | `atcId`에서 꺼낸 접수일 → "최신 접수순" 정렬용. 습득일보다 앞이거나 60일 넘게 뒤면 믿을 수 없어 습득일로 대신 |
 | `has_photo` | 사진 주소에 `no_img`가 없으면 `true` |
 | `first_seen_at` | **처음 수집한 시각.** 다시 수집해도 바뀌지 않아요 → 신규 후보 판정용 |
-| `last_seen_at` | 마지막으로 목록에서 본 시각. 매 수집마다 갱신 (오래 안 보이면 주인이 찾아간 것) |
+| `last_seen_at` | 마지막으로 목록에서 본 시각. 매 수집마다 갱신 |
+| `gone_at` | **목록에서 사라진 것을 확인한 시각** (주인이 찾아감 등). 30일 전체 수집 때 안 보이면 채우고, 다시 보이면 `NULL`. **화면에 보여줄 땐 `WHERE gone_at IS NULL`** |
 
 - 이미 있는 습득물은 목록 값만 새로 덮어써요. `detail_*`(상세 API 값)은 건드리지 않아요.
 - 메모리(192MB) 때문에 1,000건씩 받아 바로 저장하고, 출처도 하나씩 차례로 받아요.
-- 코드: `services/collector.js`(수집 순서) · `rules/foundItemRow.js`(API 항목 → 테이블 한 줄) · `db/foundItemsRepo.js`(저장 SQL) · `services/collectSchedule.js`(주기 실행)
+- `gone_at`은 그 출처를 **빠짐없이 받았을 때만** 표시해요 (실패한 지역이 있으면 이번엔 표시 안 함).
+- 코드: `services/collector.js`(수집 순서·회차 계획) · `rules/foundItemRow.js`(API 항목 → 테이블 한 줄) · `db/foundItemsRepo.js`(저장 SQL·수집 기록) · `services/collectSchedule.js`(주기 실행)
 
 ## API
 | Method | Path | 설명 |

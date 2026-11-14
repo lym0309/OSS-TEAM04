@@ -5,6 +5,7 @@ import {
   MISSING_TOLERANCE,
   configuredSources,
   createCollector,
+  planCollectRun,
 } from '../src/services/collector.js'
 import { REGIONS } from '../src/rules/foundItemCodes.js'
 
@@ -47,6 +48,7 @@ function fakeRepo() {
   const saved = new Map() // key → row (실제 DB처럼 region은 NULL이면 기존 값 유지)
   return {
     saved,
+    markGone: vi.fn(async () => 7),
     upsertMany: vi.fn(async (rows) => {
       let inserted = 0
       for (const row of rows) {
@@ -216,5 +218,73 @@ describe('configuredSources', () => {
     expect(configuredSources(env('a', 'b'))).toEqual(['police', 'portal'])
     expect(configuredSources(env('a', ''))).toEqual(['police'])
     expect(configuredSources(env('', ''))).toEqual([])
+  })
+})
+
+describe('collectOnce: 전체 수집 뒤 사라진 습득물 표시', () => {
+  const run = async (api, repo, options) =>
+    createCollector({ policeApi: api, repo, sources: ['police'], days: 30, now: NOW, log: () => {} }).collectOnce(options)
+
+  it('markGoneBefore를 주면 빠짐없이 받은 출처의 기간 안에서 표시한다', async () => {
+    const repo = fakeRepo()
+    const result = await run(fakePoliceApi({ police: { [seoul.code]: [makeItem(1)] } }), repo, {
+      markGoneBefore: '2026-11-13 12:00:00',
+    })
+
+    expect(repo.markGone).toHaveBeenCalledWith(
+      'police',
+      { fromYmd: '2026-10-15', toYmd: '2026-11-13' },
+      '2026-11-13 12:00:00',
+    )
+    expect(result.police).toMatchObject({ complete: true, gone: 7 })
+  })
+
+  it('최근 며칠 수집(markGoneBefore 없음)에서는 표시하지 않는다', async () => {
+    const repo = fakeRepo()
+    await run(fakePoliceApi({ police: { [seoul.code]: [makeItem(1)] } }), repo, { days: 3 })
+    expect(repo.markGone).not.toHaveBeenCalled()
+  })
+
+  it('실패한 지역이 있으면 (빠진 게 있을 수 있어) 표시하지 않는다', async () => {
+    const repo = fakeRepo()
+    const api = fakePoliceApi({ police: { [seoul.code]: [makeItem(1)] } }, { failRegion: busan.code })
+    const result = await run(api, repo, { markGoneBefore: '2026-11-13 12:00:00' })
+
+    expect(result.police.complete).toBe(false)
+    expect(repo.markGone).not.toHaveBeenCalled()
+  })
+
+  it('days를 주면 그 기간만 받는다', async () => {
+    const api = fakePoliceApi({})
+    await run(api, fakeRepo(), { days: 3 })
+    expect(api.calls[0]).toMatchObject({ startYmd: '20261111', endYmd: '20261113' })
+  })
+})
+
+describe('planCollectRun', () => {
+  const plan = (minutesSinceLast, minutesSinceFull, force) =>
+    planCollectRun({ minutesSinceLast, minutesSinceFull, intervalMinutes: 60, force })
+
+  it('수집한 적 없으면 전체', () => {
+    expect(plan(null, null)).toBe('full')
+  })
+
+  it('조금 전에 수집했으면 건너뛴다 (서버 재시작)', () => {
+    expect(plan(5, 120)).toBe('skip')
+    expect(plan(58, 120)).toBe('skip')
+  })
+
+  it('간격이 지났으면 최근 며칠, 전체 수집한 지 하루(-30분)가 지났으면 전체', () => {
+    expect(plan(59, 120)).toBe('recent')
+    expect(plan(60, 23 * 60 + 29)).toBe('recent')
+    expect(plan(60, 23 * 60 + 30)).toBe('full')
+  })
+
+  it('성공한 전체 수집이 없으면 전체', () => {
+    expect(plan(60, null)).toBe('full')
+  })
+
+  it('force면 언제든 전체 (npm run collect)', () => {
+    expect(plan(1, 10, true)).toBe('full')
   })
 })

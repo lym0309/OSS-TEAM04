@@ -46,6 +46,7 @@ export const env = {
   collect: {
     enabled: process.env.COLLECT_ENABLED !== 'false', // false면 서버에서 자동 수집 안 함 (npm run collect는 가능)
     intervalMinutes: toNumber(process.env.COLLECT_INTERVAL_MINUTES, 60, 10, 24 * 60), // 수집이 끝난 뒤 다음 수집까지
-    days: toNumber(process.env.COLLECT_DAYS, 30, 1, 90), // 최근 며칠치를 받을지 (오늘 포함)
+    days: toNumber(process.env.COLLECT_DAYS, 30, 1, 90), // 하루 한 번 전체 수집 기간 (오늘 포함)
+    recentDays: toNumber(process.env.COLLECT_RECENT_DAYS, 3, 1, 30), // 그 사이 매 회차 수집 기간
   },
 }

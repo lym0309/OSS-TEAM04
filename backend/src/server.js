@@ -11,6 +11,7 @@ const server = app.listen(env.port, () => {
 })
 
 // 습득물 주기 수집 (서버 시작 10초 뒤 한 번, 이후 끝날 때마다 COLLECT_INTERVAL_MINUTES 뒤)
+// 하루 한 번은 COLLECT_DAYS일 전체, 그 사이엔 COLLECT_RECENT_DAYS일만 (services/collector.js planCollectRun)
 let collectSchedule = null
 if (env.collect.enabled) {
   const job = createCollectJob()
@@ -19,7 +20,8 @@ if (env.collect.enabled) {
   } else {
     collectSchedule = startCollectSchedule({ run: job.run, intervalMs: env.collect.intervalMinutes * 60_000 })
     console.log(
-      `[collect] 자동 수집 켜짐: ${job.sources.join(', ')} · 최근 ${env.collect.days}일 · ${env.collect.intervalMinutes}분 간격`,
+      `[collect] 자동 수집 켜짐: ${job.sources.join(', ')} · ${env.collect.intervalMinutes}분마다 최근 ${env.collect.recentDays}일` +
+        ` (하루 한 번 ${env.collect.days}일 전체)`,
     )
   }
 }
