@@ -3,14 +3,8 @@
 // - 조건 값 검증 (PATCH 요청, LLM 추출 결과 모두 같은 규칙으로)
 // - 이름 → 경찰청 코드 변환
 import { COLOR_FAMILIES } from './colors.js'
+import { isValidYmd } from './dates.js'
 import { CATEGORIES, categoryCode, regionCode, REGIONS } from './foundItemCodes.js'
-
-// 실제로 있는 날짜인지 (YYYY-MM-DD). 2026-02-30 같은 값은 false
-const isValidYmd = (ymd) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return false
-  const date = new Date(`${ymd}T00:00:00Z`)
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === ymd
-}
 
 export const RAW_TEXT_MIN = 5 // 공백 제외
 export const RAW_TEXT_MAX = 500
