@@ -13,16 +13,26 @@ export class ApiError extends Error {
   }
 }
 
+export const NETWORK_ERROR_MESSAGE = '서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'
+
 export async function request(path, { method = 'GET', body, headers, ...rest } = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      ...(body !== undefined && { 'Content-Type': 'application/json' }),
-      ...headers,
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    ...rest,
-  })
+  let res
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers: {
+        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        ...headers,
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      ...rest,
+    })
+  } catch (err) {
+    // 요청 취소(AbortController)는 그대로 넘긴다 — 화면에서 무시하는 용도
+    if (err.name === 'AbortError') throw err
+    // 서버가 꺼져 있거나 네트워크 오류: 브라우저 기본 문구(Failed to fetch) 대신 안내 문구
+    throw new ApiError(0, NETWORK_ERROR_MESSAGE)
+  }
 
   const isJson = res.headers.get('content-type')?.includes('application/json')
   const data = isJson ? await res.json() : await res.text()
